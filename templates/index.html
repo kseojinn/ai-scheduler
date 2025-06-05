@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 시간표 최적화 시스템</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            padding: 40px;
+        }
+
+        .input-section {
+            background: #f8f9ff;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            border: 2px solid #e0e6ff;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 1.1em;
+        }
+
+        .excluded-courses-container {
+            background: white;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            padding: 15px;
+            min-height: 120px;
+            position: relative;
+        }
+
+        .course-input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+
+        .course-suggestions {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #ddd;
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+        }
+
+        .course-suggestion {
+            padding: 10px;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+        }
+
+        .course-suggestion:hover {
+            background: #f0f0f0;
+        }
+
+        .excluded-course-tag {
+            display: inline-block;
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            margin: 5px;
+            font-size: 14px;
+            position: relative;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .remove-course {
+            margin-left: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            padding: 2px 6px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.3);
+        }
+
+        .remove-course:hover {
+            background: rgba(255,255,255,0.5);
+        }
+
+        .optimization-types {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .optimization-option {
+            background: white;
+            border: 3px solid #e0e6ff;
+            border-radius: 15px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .optimization-option::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+            transition: left 0.5s;
+        }
+
+        .optimization-option:hover::before {
+            left: 100%;
+        }
+
+        .optimization-option:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+
+        .optimization-option.selected {
+            border-color: #4facfe;
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(79, 172, 254, 0.3);
+        }
+
+        .optimization-option h3 {
+            font-size: 1.3em;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+        }
+
+        .optimization-option .icon {
+            font-size: 1.5em;
+            margin-right: 10px;
+        }
+
+        .optimize-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 18px 50px;
+            font-size: 1.2em;
+            font-weight: 600;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: block;
+            margin: 30px auto;
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .optimize-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 30px rgba(102, 126, 234, 0.4);
+        }
+
+        .optimize-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            display: none;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .results-section {
+            display: none;
+            margin-top: 40px;
+        }
+
+        .result-tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .result-tab {
+            flex: 1;
+            padding: 15px;
+            background: #f8f9fa;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .result-tab.active {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+        }
+
+        .result-content {
+            display: none;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .result-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .timetable-info {
+            background: #f8f9ff;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border-left: 5px solid #4facfe;
+        }
+
+        .timetable-grid {
+            overflow-x: auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+
+        .timetable-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 800px;
+        }
+
+        .timetable-table th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 10px;
+            font-weight: 600;
+            text-align: center;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .timetable-table td {
+            border: 1px solid #e0e6ff;
+            padding: 8px;
+            text-align: center;
+            min-height: 60px;
+            vertical-align: top;
+            position: relative;
+        }
+
+        .time-slot {
+            background: #f8f9ff;
+            font-weight: 600;
+            color: #666;
+            width: 120px;
+        }
+
+        .course-cell {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            border-radius: 8px;
+            margin: 2px;
+            padding: 8px;
+            font-size: 12px;
+            line-height: 1.3;
+            font-weight: 500;
+            box-shadow: 0 2px 8px rgba(79, 172, 254, 0.3);
+            transition: transform 0.2s ease;
+        }
+
+        .course-cell:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(79, 172, 254, 0.4);
+        }
+
+        .course-name {
+            font-weight: 600;
+            margin-bottom: 3px;
+        }
+
+        .course-details {
+            font-size: 10px;
+            opacity: 0.9;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+
+        .empty-state .icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        .footer {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-align: center;
+            padding: 20px;
+            margin-top: 40px;
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .footer .developer-info {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .footer .developer-info .icon {
+            font-size: 16px;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                padding: 20px;
+            }
+            
+            .optimization-types {
+                grid-template-columns: 1fr;
+            }
+            
+            .result-tabs {
+                flex-direction: column;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 AI 시간표 최적화 시스템</h1>
+            <p>시뮬레이티드 어닐링 + 유전 알고리즘으로 완벽한 시간표를 만들어보세요</p>
+        </div>
+
+        <div class="main-content">
+            <div class="input-section">
+                <div class="form-group">
+                    <label>📚 이미 수강한 과목 (제외할 과목들)</label>
+                    <div class="excluded-courses-container">
+                        <input type="text" 
+                               class="course-input" 
+                               id="courseInput" 
+                               placeholder="과목명을 입력하세요 (자동완성 지원)">
+                        <div class="course-suggestions" id="courseSuggestions"></div>
+                        <div id="excludedCourses"></div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>🎯 최적화 유형 선택</label>
+                    <div class="optimization-types">
+                        <div class="optimization-option" data-type="morning_avoid">
+                            <h3><span class="icon">☀️</span>오전 수업 회피</h3>
+                            <p>1-3교시 오전 수업을 최대한 피하는 시간표</p>
+                        </div>
+                        <div class="optimization-option" data-type="lunch_time">
+                            <h3><span class="icon">🍽️</span>점심시간 확보</h3>
+                            <p>4-6교시 점심시간을 확보하는 시간표</p>
+                        </div>
+                        <div class="optimization-option" data-type="max_free_time">
+                            <h3><span class="icon">⏰</span>최대 공강 확보</h3>
+                            <p>최대한 많은 자유시간을 확보하는 시간표</p>
+                        </div>
+                        <div class="optimization-option" data-type="distribute_days">
+                            <h3><span class="icon">📅</span>요일 분산</h3>
+                            <p>수업을 여러 요일에 고르게 분산하는 시간표</p>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="optimize-btn" onclick="optimizeTimetable()">
+                    ✨ 시간표 최적화 시작
+                </button>
+            </div>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <h3>AI가 최적의 시간표를 생성하고 있습니다...</h3>
+                <p>시뮬레이티드 어닐링과 유전 알고리즘이 작동 중입니다</p>
+            </div>
+
+            <div class="results-section" id="resultsSection">
+                <h2>🎉 최적화 결과</h2>
+                <div class="result-tabs" id="resultTabs"></div>
+                <div id="resultContents"></div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <div class="developer-info">
+                <span class="icon">👨‍💻</span>
+                <span>개발자: Seojin Kang</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let courseNames = [];
+        let excludedCourses = [];
+        let selectedOptimizationType = '';
+        let optimizationResults = [];
+
+        // 페이지 로드 시 과목명 목록 가져오기
+        window.addEventListener('DOMContentLoaded', async function() {
+            try {
+                const response = await fetch('/course_names');
+                courseNames = await response.json();
+            } catch (error) {
+                console.error('과목명 로드 실패:', error);
+            }
+        });
+
+        // 과목 입력 자동완성
+        document.getElementById('courseInput').addEventListener('input', function(e) {
+            const input = e.target.value.toLowerCase();
+            const suggestions = document.getElementById('courseSuggestions');
+            
+            if (input.length < 1) {
+                suggestions.style.display = 'none';
+                return;
+            }
+
+            const matches = courseNames.filter(name => 
+                name.toLowerCase().includes(input) && 
+                !excludedCourses.includes(name)
+            ).slice(0, 10);
+
+            if (matches.length > 0) {
+                suggestions.innerHTML = matches.map(name => 
+                    `<div class="course-suggestion" onclick="addExcludedCourse('${name}')">${name}</div>`
+                ).join('');
+                suggestions.style.display = 'block';
+            } else {
+                suggestions.style.display = 'none';
+            }
+        });
+
+        // 과목 입력에서 엔터 키 처리
+        document.getElementById('courseInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                const input = e.target.value.trim();
+                if (input && courseNames.includes(input) && !excludedCourses.includes(input)) {
+                    addExcludedCourse(input);
+                }
+            }
+        });
+
+        // 외부 클릭 시 자동완성 숨기기
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.excluded-courses-container')) {
+                document.getElementById('courseSuggestions').style.display = 'none';
+            }
+        });
+
+        // 제외할 과목 추가
+        function addExcludedCourse(courseName) {
+            if (!excludedCourses.includes(courseName)) {
+                excludedCourses.push(courseName);
+                updateExcludedCoursesDisplay();
+                document.getElementById('courseInput').value = '';
+                document.getElementById('courseSuggestions').style.display = 'none';
+            }
+        }
+
+        // 제외할 과목 제거
+        function removeExcludedCourse(courseName) {
+            excludedCourses = excludedCourses.filter(name => name !== courseName);
+            updateExcludedCoursesDisplay();
+        }
+
+        // 제외할 과목 표시 업데이트
+        function updateExcludedCoursesDisplay() {
+            const container = document.getElementById('excludedCourses');
+            container.innerHTML = excludedCourses.map(name => 
+                `<span class="excluded-course-tag">
+                    ${name}
+                    <span class="remove-course" onclick="removeExcludedCourse('${name}')">×</span>
+                </span>`
+            ).join('');
+        }
+
+        // 최적화 유형 선택
+        document.querySelectorAll('.optimization-option').forEach(option => {
+            option.addEventListener('click', function() {
+                document.querySelectorAll('.optimization-option').forEach(opt => 
+                    opt.classList.remove('selected')
+                );
+                this.classList.add('selected');
+                selectedOptimizationType = this.dataset.type;
+            });
+        });
+
+        // 시간표 최적화 실행
+        async function optimizeTimetable() {
+            if (!selectedOptimizationType) {
+                alert('최적화 유형을 선택해주세요.');
+                return;
+            }
+
+            const loadingElement = document.getElementById('loading');
+            const resultsElement = document.getElementById('resultsSection');
+            const optimizeBtn = document.querySelector('.optimize-btn');
+
+            // UI 상태 변경
+            loadingElement.style.display = 'block';
+            resultsElement.style.display = 'none';
+            optimizeBtn.disabled = true;
+
+            try {
+                const response = await fetch('/optimize', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        excluded_courses: excludedCourses,
+                        optimization_type: selectedOptimizationType
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success && result.results.length > 0) {
+                    optimizationResults = result.results;
+                    displayResults();
+                } else {
+                    alert('최적화 결과를 찾을 수 없습니다. 조건을 조정해보세요.');
+                }
+            } catch (error) {
+                console.error('최적화 실패:', error);
+                alert('시간표 최적화 중 오류가 발생했습니다.');
+            } finally {
+                loadingElement.style.display = 'none';
+                optimizeBtn.disabled = false;
+            }
+        }
+
+        // 결과 표시
+        function displayResults() {
+            const resultsSection = document.getElementById('resultsSection');
+            const tabsContainer = document.getElementById('resultTabs');
+            const contentsContainer = document.getElementById('resultContents');
+
+            // 탭 생성
+            tabsContainer.innerHTML = optimizationResults.map((result, index) => 
+                `<button class="result-tab ${index === 0 ? 'active' : ''}" 
+                         onclick="showResult(${index})">
+                    시간표 ${index + 1} (${result.total_credits}학점)
+                </button>`
+            ).join('');
+
+            // 콘텐츠 생성
+            contentsContainer.innerHTML = optimizationResults.map((result, index) => 
+                `<div class="result-content ${index === 0 ? 'active' : ''}" id="result-${index}">
+                    ${generateTimetableHTML(result)}
+                </div>`
+            ).join('');
+
+            resultsSection.style.display = 'block';
+        }
+
+        // 결과 탭 전환
+        function showResult(index) {
+            // 탭 활성화 상태 변경
+            document.querySelectorAll('.result-tab').forEach((tab, i) => {
+                tab.classList.toggle('active', i === index);
+            });
+
+            // 콘텐츠 표시 상태 변경
+            document.querySelectorAll('.result-content').forEach((content, i) => {
+                content.classList.toggle('active', i === index);
+            });
+        }
+
+        // 시간표 HTML 생성
+        function generateTimetableHTML(result) {
+            const timeSlots = [
+                '1교시 (09:00-09:50)', '2교시 (09:55-10:45)', '3교시 (10:50-11:40)',
+                '4교시 (11:55-12:45)', '5교시 (12:50-13:40)', '6교시 (13:45-14:35)',
+                '7교시 (14:40-15:30)', '8교시 (15:35-16:25)', '9교시 (16:30-17:25)',
+                '10교시 (17:40-18:30)', '11교시 (18:30-19:20)', '12교시 (19:20-20:10)',
+                '13교시 (20:15-21:05)', '14교시 (21:05-21:55)', '15교시 (21:55-22:45)'
+            ];
+
+            const days = ['월', '화', '수', '목', '금'];
+
+            let html = `
+                <div class="timetable-info">
+                    <h3>📊 시간표 정보</h3>
+                    <p><strong>총 학점:</strong> ${result.total_credits}학점</p>
+                    <p><strong>적합도 점수:</strong> ${result.fitness_score}</p>
+                    <p><strong>과목 수:</strong> ${result.courses.length}개</p>
+                </div>
+                <div class="timetable-grid">
+                    <table class="timetable-table">
+                        <thead>
+                            <tr>
+                                <th>시간</th>
+                                ${days.map(day => `<th>${day}</th>`).join('')}
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            timeSlots.forEach((timeSlot, timeIndex) => {
+                const timeNumber = timeIndex + 1;
+                html += `<tr>`;
+                html += `<td class="time-slot">${timeSlot}</td>`;
+                
+                days.forEach(day => {
+                    const courseInfo = result.grid[day] && result.grid[day][timeNumber.toString()];
+                    if (courseInfo) {
+                        html += `
+                            <td>
+                                <div class="course-cell">
+                                    <div class="course-name">${courseInfo.course_name}</div>
+                                    <div class="course-details">
+                                        ${courseInfo.professor}<br>
+                                        ${courseInfo.classroom}<br>
+                                        ${courseInfo.credits}학점
+                                    </div>
+                                </div>
+                            </td>
+                        `;
+                    } else {
+                        html += `<td></td>`;
+                    }
+                });
+                
+                html += `</tr>`;
+            });
+
+            html += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
+
+            return html;
+        }
+    </script>
+</body>
+</html>
