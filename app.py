@@ -81,8 +81,13 @@ class TimetableOptimizer:
         total_credits = 0
         used_course_names = set()
         
-        # 필수 과목부터 선택
+        # 필수 과목부터 선택 (단, 점심시간 최적화일 때는 점심시간 피함)
         required_courses = [c for c in self.courses if c['category'] == '교필']
+        if self.optimization_type == 'lunch_time':
+            # 점심시간과 겹치지 않는 필수과목 우선 선택
+            required_courses = sorted(required_courses, 
+                                    key=lambda x: self._has_lunch_conflict(x['schedule']))
+        
         for course in required_courses:
             if (total_credits + course['credits'] <= self.max_credits and 
                 course['course_name'] not in used_course_names and
@@ -91,9 +96,14 @@ class TimetableOptimizer:
                 total_credits += course['credits']
                 used_course_names.add(course['course_name'])
         
-        # 나머지 과목 랜덤 선택
+        # 나머지 과목 선택
         other_courses = [c for c in self.courses if c['category'] != '교필']
         random.shuffle(other_courses)
+        
+        # 점심시간 최적화의 경우 점심시간 피하는 과목 우선
+        if self.optimization_type == 'lunch_time':
+            other_courses = sorted(other_courses, 
+                                 key=lambda x: self._has_lunch_conflict(x['schedule']))
         
         for course in other_courses:
             if (total_credits >= self.min_credits and total_credits + course['credits'] > self.max_credits):
@@ -108,6 +118,14 @@ class TimetableOptimizer:
                     break
         
         return selected if total_credits >= self.min_credits else []
+    
+    def _has_lunch_conflict(self, schedule_str):
+        """점심시간(4-6교시)와 겹치는지 확인"""
+        slots = parse_schedule(schedule_str)
+        for day, time in slots:
+            if 4 <= time <= 6:  # 점심시간
+                return True
+        return False
     
     def calculate_fitness(self, timetable):
         """적합도 함수"""
@@ -146,14 +164,40 @@ class TimetableOptimizer:
             # 점심시간 확보 (4-6교시)
             lunch_conflicts = 0
             for day in range(5):
-                if any(time_grid[day][4:7]):
+                if any(time_grid[day][4:7]):  # 4, 5, 6교시 확인
                     lunch_conflicts += 1
-            score -= lunch_conflicts * 25
+            score -= lunch_conflicts * 40  # 패널티 강화
+            
+            # 점심시간이 완전히 비어있는 날에 보너스
+            free_lunch_days = 0
+            for day in range(5):
+                if not any(time_grid[day][4:7]) and any(time_grid[day]):  # 수업은 있지만 점심시간은 비어있음
+                    free_lunch_days += 1
+            score += free_lunch_days * 30
             
         elif self.optimization_type == 'max_free_time':
-            # 최대한 많은 공강 확보
-            occupied_slots = sum(sum(row) for row in time_grid)
-            score += (70 - occupied_slots) * 5  # 전체 슬롯 대비 비어있는 슬롯
+            # 최대한 많은 공강 확보 - 수정된 로직
+            total_class_days = sum(1 for day in range(5) if any(time_grid[day]))
+            total_occupied_slots = sum(sum(row) for row in time_grid)
+            
+            # 수업 있는 날 수를 최소화 (적은 날에 몰아서)
+            score += (5 - total_class_days) * 50  # 수업 없는 날당 50점
+            
+            # 전체 수업 시간 최소화
+            score += (75 - total_occupied_slots) * 3  # 비어있는 시간 슬롯당 3점
+            
+            # 연속된 공강시간 보너스
+            for day in range(5):
+                if any(time_grid[day]):  # 수업이 있는 날만 확인
+                    continuous_free = 0
+                    max_continuous_free = 0
+                    for time_slot in range(1, 16):
+                        if not time_grid[day][time_slot]:
+                            continuous_free += 1
+                            max_continuous_free = max(max_continuous_free, continuous_free)
+                        else:
+                            continuous_free = 0
+                    score += max_continuous_free * 2  # 연속 공강시간 보너스
             
         elif self.optimization_type == 'distribute_days':
             # 최대한 많은 요일로 분산
